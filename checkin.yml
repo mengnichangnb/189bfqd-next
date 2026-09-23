@@ -1,0 +1,20 @@
+name: Cloud189 Checkin
+
+on:
+  schedule:
+    - cron: "35 22 * * *" # UTC 22:35 = 北京时间次日 06:35
+  workflow_dispatch:
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm start
+        env:
+          TY_ACCOUNTS: ${{ secrets.TY_ACCOUNTS }}
+          SIGN_CONCURRENCY: 3

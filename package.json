@@ -1,0 +1,13 @@
+{
+  "name": "cloud189-checkin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "天翼云盘:单次登录 + 少量并发签到",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "cloud189-sdk": "1.0.9",
+    "dotenv": "16.4.5"
+  }
+}
