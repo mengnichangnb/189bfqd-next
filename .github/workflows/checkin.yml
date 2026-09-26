@@ -17,4 +17,4 @@ jobs:
       - run: npm start
         env:
           TY_ACCOUNTS: ${{ secrets.TY_ACCOUNTS }}
-          SIGN_CONCURRENCY: 30
+          SIGN_CONCURRENCY: 3
