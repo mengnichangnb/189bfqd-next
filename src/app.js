@@ -5,7 +5,7 @@ const { CloudClient, FileTokenStore } = require("cloud189-sdk");
 
 // 单账号并发签到次数:默认 3,限制在 1-10,避免高并发触发风控
 const SIGN_CONCURRENCY = Math.min(
-  30,
+  3,
   Math.max(1, parseInt(process.env.SIGN_CONCURRENCY, 10) || 3)
 );
 const TOKEN_DIR = path.join(__dirname, "..", ".token");
