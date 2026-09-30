@@ -12,6 +12,42 @@ const TOKEN_DIR = path.join(__dirname, "..", ".token");
 
 const mask = (u) => (u.length <= 5 ? u : `${u.slice(0, 3)}****${u.slice(-2)}`);
 
+// 网络类错误才值得重试;验证码、风控等业务错误重试无意义,还可能加重风控
+const NET_CODES = new Set([
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ECONNABORTED",
+  "EPIPE",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "UND_ERR_CONNECT_TIMEOUT",
+]);
+
+function isNetworkError(err, depth = 0) {
+  if (!err || typeof err !== "object" || depth > 5) return false;
+  if (err.code && NET_CODES.has(err.code)) return true;
+  if (Array.isArray(err.errors) && err.errors.some((e) => isNetworkError(e, depth + 1))) {
+    return true;
+  }
+  return isNetworkError(err.cause, depth + 1);
+}
+
+async function withRetry(tag, fn, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i >= attempts || !isNetworkError(err)) throw err;
+      const delay = 5000 * i; // 5s、10s 线性退避
+      console.warn(
+        `[${tag}] 网络错误(${err.code || err.cause?.code || err.message}),${delay / 1000}s 后重试 ${i}/${attempts - 1}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 function loadAccounts() {
   const raw = (process.env.TY_ACCOUNTS || "").trim();
   let list;
@@ -34,6 +70,7 @@ function loadAccounts() {
 }
 
 async function signAccount({ userName, password }) {
+  const tag = mask(userName);
   const client = new CloudClient({
     username: userName,
     password,
@@ -41,11 +78,13 @@ async function signAccount({ userName, password }) {
   });
 
   // 单次登录:显式建立会话,验证码/超时等问题在这里快速暴露
-  await client.getSession();
+  await withRetry(tag, () => client.getSession());
 
   // 少量并发签到:复用同一会话,不重复登录
   const results = await Promise.allSettled(
-    Array.from({ length: SIGN_CONCURRENCY }, () => client.userSign())
+    Array.from({ length: SIGN_CONCURRENCY }, () =>
+      withRetry(tag, () => client.userSign())
+    )
   );
 
   let signed = 0;

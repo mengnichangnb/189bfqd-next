@@ -14,7 +14,21 @@ jobs:
         with:
           node-version: 20
       - run: npm install
-      - run: npm start
+      - name: 签到(失败自动重试)
+        run: |
+          ok=0
+          for i in 1 2 3; do
+            echo "===== 第 $i/3 次尝试 ====="
+            if npm start; then ok=1; break; fi
+            if [ "$i" -lt 3 ]; then
+              echo "尝试 $i 失败,120 秒后重试"
+              sleep 120
+            fi
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "3 次尝试均失败"
+            exit 1
+          fi
         env:
           TY_ACCOUNTS: ${{ secrets.TY_ACCOUNTS }}
           SIGN_CONCURRENCY: 3
