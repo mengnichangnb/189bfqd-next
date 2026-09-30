@@ -33,15 +33,18 @@ function isNetworkError(err, depth = 0) {
   return isNetworkError(err.cause, depth + 1);
 }
 
-async function withRetry(tag, fn, attempts = 3) {
+async function withRetry(tag, fn, attempts = 3, onlyNetwork = true) {
   for (let i = 1; ; i++) {
     try {
       return await fn();
     } catch (err) {
-      if (i >= attempts || !isNetworkError(err)) throw err;
+      if (i >= attempts) throw err;
+      // SDK 登录失败会吞掉根因并抛出无 cause 的 Error,无法区分错误类型,
+      // 因此登录允许无条件重试(建立会话幂等,多试无害);其余调用仅重试网络错误
+      if (onlyNetwork && !isNetworkError(err)) throw err;
       const delay = 5000 * i; // 5s、10s 线性退避
       console.warn(
-        `[${tag}] 网络错误(${err.code || err.cause?.code || err.message}),${delay / 1000}s 后重试 ${i}/${attempts - 1}`
+        `[${tag}] 请求失败(${err.code || err.cause?.code || err.message}),${delay / 1000}s 后重试 ${i}/${attempts - 1}`
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -77,8 +80,8 @@ async function signAccount({ userName, password }) {
     token: new FileTokenStore(path.join(TOKEN_DIR, `${userName}.json`)),
   });
 
-  // 单次登录:显式建立会话,验证码/超时等问题在这里快速暴露
-  await withRetry(tag, () => client.getSession());
+  // 单次登录:显式建立会话;SDK 吞掉了底层错误类型,这里无条件重试
+  await withRetry(tag, () => client.getSession(), 3, false);
 
   // 少量并发签到:复用同一会话,不重复登录
   const results = await Promise.allSettled(

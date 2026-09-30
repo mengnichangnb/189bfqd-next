@@ -3,6 +3,7 @@ name: Cloud189 Checkin
 on:
   schedule:
     - cron: "35 22 * * *" # UTC 22:35 = 北京时间次日 06:35
+    - cron: "25 13 * * *" # UTC 13:25 = 北京时间 21:25,补签兜底(已签到则直接跳过)
   workflow_dispatch:
 
 jobs:
@@ -21,8 +22,8 @@ jobs:
             echo "===== 第 $i/3 次尝试 ====="
             if npm start; then ok=1; break; fi
             if [ "$i" -lt 3 ]; then
-              echo "尝试 $i 失败,120 秒后重试"
-              sleep 120
+              echo "尝试 $i 失败,300 秒后重试"
+              sleep 300
             fi
           done
           if [ "$ok" -ne 1 ]; then
